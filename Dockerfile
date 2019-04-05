@@ -1,6 +1,6 @@
 # Just use the code-server docker binary
-#FROM codercom/code-server as coder-binary
-FROM my-codeserver as coder-binary
+FROM codercom/code-server as coder-binary
+# FROM my-codeserver as coder-binary
 
 FROM ubuntu:18.10 as vscode-env
 ARG DEBIAN_FRONTEND=noninteractive
@@ -23,37 +23,47 @@ COPY sync.gist /root/sync.gist
 # This gets user config from gist, parse it and install exts with VSCode
 RUN code -v --user-data-dir /root/.config/Code && \
 	cd /root/scripts && \
-	sh get-config-from-gist.sh && \
+	sh get-config-from-gist.sh &&  \
 	sh parse-extension-list.sh && \
 	sh install-vscode-extensions.sh ../extensions.list
 
 
 # The production image for code-server
-FROM ubuntu:18.10
+FROM node:8-slim
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
-ARG LOCALE=sk_SK
+ARG TZ="Europe/Bratislava"
+ARG LOCALE="en_US.UTF-8"
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates gnupg2 locales git curl wget \
-	&& apt-get install -y --no-install-recommends build-essential xz-utils openssl net-tools \
-	&& apt-get install -y --no-install-recommends sudo ripgrep nano \
-	# Install Node.js
-	&& curl -sL https://deb.nodesource.com/setup_11.x  | bash - \
-	# Install Yarn
-	&& curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-	&& echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
-	&& apt-get update && apt-get install -y --no-install-recommends yarn nodejs \
-	# Locale
-	&& locale-gen ${LOCALE}.UTF-8 \
+	&& apt-get install -y --no-install-recommends sudo git python locales apt-transport-https lftp openssl nano net-tools libsecret-1-dev jq \
+	&& wget -q https://packages.sury.org/php/apt.gpg -O- | apt-key add - \
+    && echo "deb https://packages.sury.org/php/ jessie main" | tee /etc/apt/sources.list.d/php.list \
+	&& apt-get update \
+    && apt-get install -y --no-install-recommends php7.2 php7.2-cli \
+    && curl -s -o composer-setup.php https://getcomposer.org/installer \
+    && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
+    && rm composer-setup.php \
+	# ripgrep
+	&& REPO="https://github.com/BurntSushi/ripgrep/releases/download/" \
+	&& RG_LATEST=$(curl -sSL "https://api.github.com/repos/BurntSushi/ripgrep/releases/latest" | jq --raw-output .tag_name) \
+	&& RELEASE="${RG_LATEST}/ripgrep-${RG_LATEST}-x86_64-unknown-linux-musl.tar.gz" \
+	&& TMPDIR=$(mktemp -d) \
+	&& cd $TMPDIR \
+	&& wget -O - ${REPO}${RELEASE} | tar zxf - --strip-component=1 \
+	&& ls -la $TMPDIR \
+	&& ls -la $TMPDIR/complete \
+	&& mv rg /usr/bin/ \
+	&& mv complete/rg.bash /usr/share/bash-completion/completions/rg \
 	# clean
-	&& apt-get remove -y build-essential xz-utils \
+	&& apt-get remove -y build-essential xz-utils jq \
 	&& apt-get clean autoclean \
 	&& apt-get autoremove --yes \
 	&& rm -rf /var/lib/{apt,dpkg,cache,log}/
 
-RUN groupadd -g ${GROUP_ID} coder \
+RUN userdel -r -f node \
+	&& groupadd -g ${GROUP_ID} coder \
 	&& adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID coder \
 	&& adduser coder sudo \
     && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
@@ -61,24 +71,27 @@ RUN groupadd -g ${GROUP_ID} coder \
 	&& mkdir -p /home/coder/workspaces \
 	&& mkdir -p /home/coder/.local/share/code-server \
 	&& mkdir -p /home/coder/.config/Code/ \
+	&& mkdir -p /home/coder/.cache/code-server/logs \
 	&& ln -s /home/coder/.local/share/code-server/User /home/coder/.config/Code/User \
 	&& chown -R coder:coder /home/coder \
 	&& touch /product.json \
-	&& chown -R coder:coder /product.json
+	&& chown -R coder:coder /product.json \
+	# timezone
+	&& rm -f /etc/localtime \
+    && ln -s /usr/share/zoneinfo/$TZ /etc/localtime \
+    && sed -i 's/^# *\('$LOCALE'\)/\1/' /etc/locale.gen \
+	# locale
+    && locale-gen \
+    && echo "export LC_ALL="$LOCALE >> /home/coder/.bashrc \
+    && echo "export LANG="$LOCALE >> /home/coder/.bashrc \
+    && echo "export LANGUAGE="$LOCALE >> /home/coder/.bashrc \
+    && npm install gulp -g
 
 WORKDIR /home/coder/project
 
-COPY --from=coder-binary /usr/local/bin/code-server /usr/local/bin/code-server
-COPY --from=vscode-env /root/settings.json /home/coder/.local/share/code-server/User/settings.json
-COPY --from=vscode-env /root/.vscode/extensions /home/coder/.local/share/code-server/extensions
-
-RUN chown -R coder:coder /home/coder/
-
-# Locale Generation
-# We unfortunately cannot use update-locale because docker will not use the env variables
-# configured in /etc/default/locale so we need to set it manually.
-ENV LANG=en_US.UTF-8
-ENV LC_ALL=${LOCALE}.UTF-8
+COPY --from=coder-binary --chown=coder:coder /usr/local/bin/code-server /usr/local/bin/code-server
+COPY --from=vscode-env --chown=coder:coder /root/settings.json /home/coder/.local/share/code-server/User/settings.json
+COPY --from=vscode-env --chown=coder:coder /root/.vscode/extensions /home/coder/.local/share/code-server/extensions
 
 USER coder
 
