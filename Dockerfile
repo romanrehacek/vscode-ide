@@ -37,14 +37,19 @@ ARG TZ="Europe/Bratislava"
 ARG LOCALE="en_US.UTF-8"
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends sudo git python locales apt-transport-https lftp openssl nano net-tools libsecret-1-dev jq \
-	&& wget -q https://packages.sury.org/php/apt.gpg -O- | apt-key add - \
-    && echo "deb https://packages.sury.org/php/ jessie main" | tee /etc/apt/sources.list.d/php.list \
-	&& apt-get update \
-    && apt-get install -y --no-install-recommends php7.2 php7.2-cli \
-    && curl -s -o composer-setup.php https://getcomposer.org/installer \
-    && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
-    && rm composer-setup.php \
+	&& apt-get install -y --no-install-recommends \
+		openssl \
+		net-tools \
+		git \
+		locales \
+		sudo \
+		dumb-init \
+		lftp \
+		nano \
+		jq \
+		curl \
+		wget \
+		ca-certificates \
 	# ripgrep
 	&& REPO="https://github.com/BurntSushi/ripgrep/releases/download/" \
 	&& RG_LATEST=$(curl -sSL "https://api.github.com/repos/BurntSushi/ripgrep/releases/latest" | jq --raw-output .tag_name) \

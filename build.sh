@@ -5,5 +5,5 @@ docker build \
     --build-arg GROUP_ID=$(id -g ${USER}) \
     --build-arg LOCALE="sk_SK.UTF-8" \
     --build-arg TZ="Europe/Bratislava" \
-    -t myvs_full2 \
+    -t myvs_full \
     .
