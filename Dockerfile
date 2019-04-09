@@ -39,6 +39,7 @@ ARG LOCALE="en_US.UTF-8"
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		openssl \
+		ssh \
 		net-tools \
 		git \
 		locales \
@@ -99,6 +100,8 @@ COPY --from=vscode-env --chown=coder:coder /root/settings.json /home/coder/.loca
 COPY --from=vscode-env --chown=coder:coder /root/.vscode/extensions /home/coder/.local/share/code-server/extensions
 
 USER coder
+
+RUN cat /dev/zero | ssh-keygen -q -N ""
 
 EXPOSE 8443
 ENTRYPOINT ["code-server"]
