@@ -5,7 +5,7 @@ docker run -d -it \
 	--restart always \
 	--name my-vscode \
 	-v "/var/www:/home/coder/projects" \
-	-v "/home/roman:/home/coder/workspaces" \
+	-v "${HOME}:/home/coder/hosthome" \
 	myvs_full \
 	--allow-http \
 	--no-auth

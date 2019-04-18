@@ -39,31 +39,23 @@ ARG LOCALE="en_US.UTF-8"
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		openssl \
-		ssh \
 		net-tools \
 		git \
 		locales \
 		sudo \
 		dumb-init \
-		lftp \
-		nano \
-		jq \
 		curl \
 		wget \
+		ssh \
+		lftp \
+		nano \
 		ca-certificates \
-	# ripgrep
-	&& REPO="https://github.com/BurntSushi/ripgrep/releases/download/" \
-	&& RG_LATEST=$(curl -sSL "https://api.github.com/repos/BurntSushi/ripgrep/releases/latest" | jq --raw-output .tag_name) \
-	&& RELEASE="${RG_LATEST}/ripgrep-${RG_LATEST}-x86_64-unknown-linux-musl.tar.gz" \
-	&& TMPDIR=$(mktemp -d) \
-	&& cd $TMPDIR \
-	&& wget -O - ${REPO}${RELEASE} | tar zxf - --strip-component=1 \
-	&& ls -la $TMPDIR \
-	&& ls -la $TMPDIR/complete \
-	&& mv rg /usr/bin/ \
-	&& mv complete/rg.bash /usr/share/bash-completion/completions/rg \
+		apt-transport-https \
+	&& wget -q https://packages.sury.org/php/apt.gpg -O- | apt-key add - \
+    && echo "deb https://packages.sury.org/php/ jessie main" | tee /etc/apt/sources.list.d/php.list \
+	&& apt update \
+	&& apt install -y --no-install-recommends php7.2 \
 	# clean
-	&& apt-get remove -y build-essential xz-utils jq \
 	&& apt-get clean autoclean \
 	&& apt-get autoremove --yes \
 	&& rm -rf /var/lib/{apt,dpkg,cache,log}/
@@ -73,15 +65,14 @@ RUN userdel -r -f node \
 	&& adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID coder \
 	&& adduser coder sudo \
     && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
+	&& mkdir -p /home/coder/project \
 	&& mkdir -p /home/coder/projects \
-	&& mkdir -p /home/coder/workspaces \
+	&& mkdir -p /home/coder/hosthome \
 	&& mkdir -p /home/coder/.local/share/code-server \
 	&& mkdir -p /home/coder/.config/Code/ \
 	&& mkdir -p /home/coder/.cache/code-server/logs \
 	&& ln -s /home/coder/.local/share/code-server/User /home/coder/.config/Code/User \
 	&& chown -R coder:coder /home/coder \
-	&& touch /product.json \
-	&& chown -R coder:coder /product.json \
 	# timezone
 	&& rm -f /etc/localtime \
     && ln -s /usr/share/zoneinfo/$TZ /etc/localtime \
