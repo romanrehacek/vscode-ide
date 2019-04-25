@@ -54,7 +54,7 @@ RUN apt-get update \
 	&& wget -q https://packages.sury.org/php/apt.gpg -O- | apt-key add - \
     && echo "deb https://packages.sury.org/php/ jessie main" | tee /etc/apt/sources.list.d/php.list \
 	&& apt update \
-	&& apt install -y --no-install-recommends php7.2 \
+	&& apt install -y --no-install-recommends php7.2 php-xdebug \
 	# clean
 	&& apt-get clean autoclean \
 	&& apt-get autoremove --yes \
@@ -82,7 +82,7 @@ RUN userdel -r -f node \
     && echo "export LC_ALL="$LOCALE >> /home/coder/.bashrc \
     && echo "export LANG="$LOCALE >> /home/coder/.bashrc \
     && echo "export LANGUAGE="$LOCALE >> /home/coder/.bashrc \
-    && npm install gulp -g
+    && npm install -g gulp eslint
 
 WORKDIR /home/coder/project
 
